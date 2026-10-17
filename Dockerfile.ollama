@@ -1,0 +1,28 @@
+FROM guidellm-lab:latest
+
+RUN python - <<'PY'
+from pathlib import Path
+
+path = Path(
+    "/usr/local/lib/python3.13/site-packages/"
+    "guidellm/backends/openai/request_handlers.py"
+)
+
+source = path.read_text()
+
+old_dataset = '"max_completion_tokens": data.output_metrics.text_tokens'
+new_dataset = '"max_tokens": data.output_metrics.text_tokens'
+
+old_backend = 'arguments.body["max_completion_tokens"] = kwargs["max_tokens"]'
+new_backend = 'arguments.body["max_tokens"] = kwargs["max_tokens"]'
+
+assert source.count(old_dataset) == 1
+assert source.count(old_backend) == 1
+
+source = source.replace(old_dataset, new_dataset)
+source = source.replace(old_backend, new_backend)
+
+path.write_text(source)
+
+print("Patch aplicado com sucesso.")
+PY
