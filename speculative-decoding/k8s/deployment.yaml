@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-spec
+  namespace: ml-lab
+  labels:
+    app: llama-spec
+spec:
+  # Scripts/deploy.sh seleciona o modo e aumenta para 1. Evita conflito com Ollama.
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: llama-spec
+  template:
+    metadata:
+      labels:
+        app: llama-spec
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: llama-spec
+          # CUDA 12, driver NVIDIA 595 é compatível. Fixar digest após validar.
+          image: ghcr.io/ggml-org/llama.cpp:server-cuda
+          imagePullPolicy: IfNotPresent
+          args:
+            - --model
+            - /models/qwen2.5-3b-instruct-q4_k_m.gguf
+            - --alias
+            - qwen2.5-3b-instruct
+            - --ctx-size
+            - "2048"
+            - --n-gpu-layers
+            - "99"
+            - --parallel
+            - "1"
+            - --threads
+            - "3"
+            - --threads-batch
+            - "3"
+            - --batch-size
+            - "128"
+            - --ubatch-size
+            - "128"
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+            - --metrics
+            - --spec-type
+            - none
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "3"
+              memory: 7Gi
+              nvidia.com/gpu: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 90
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-spec-models

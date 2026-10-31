@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-spec
+  namespace: ml-lab
+spec:
+  type: ClusterIP
+  selector:
+    app: llama-spec
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
