@@ -7,7 +7,7 @@ K=(minikube -p gpu-lab kubectl --)
 MODE="${1:-}"
 K_TOKENS="${2:-4}"
 case "$MODE" in baseline|ngram|ngram-mod|draft) ;; *) echo "Uso: $0 {baseline|ngram|ngram-mod|draft} [2|4|6|8]" >&2; exit 2;; esac
-[[ "$K_TOKENS" =~ ^(2|4|6|8)$ ]] || { echo "K invalido (2,4,6,8)" >&2; exit 2; }
+[[ "$K_TOKENS" =~ ^(1|2|4|6|8)$ ]] || { echo "K invalido (1,2,4,6,8)" >&2; exit 2; }
 REPLICAS="$("${K[@]}" get deployment ollama -n ml-lab -o jsonpath='{.spec.replicas}' 2>/dev/null || echo 0)"
 if [[ "$REPLICAS" != "0" ]]; then
   echo "[ERRO] Ollama ainda solicita a unica GPU. Antes de prosseguir:" >&2
@@ -29,6 +29,20 @@ ARGS=(
   --port 8080
   --metrics
 )
+# Configuracao opcional do Flash Attention.
+# Sem LLAMA_FA, preserva o comportamento original.
+if [[ -n "${LLAMA_FA:-}" ]]; then
+  case "$LLAMA_FA" in
+    on|off|auto) ;;
+    *)
+      echo "[ERRO] LLAMA_FA deve ser on, off ou auto" >&2
+      exit 2
+      ;;
+  esac
+
+  ARGS+=(--flash-attn "$LLAMA_FA")
+fi
+
 case "$MODE" in
   baseline) ARGS+=(--spec-type none);;
   ngram) ARGS+=(--spec-type ngram-simple --spec-draft-n-max "$K_TOKENS");;
